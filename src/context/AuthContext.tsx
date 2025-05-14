@@ -11,6 +11,7 @@ import { auth, db } from "../firebase";
 import { User } from "../types";
 import { defaultUsers } from "../data/users";
 import { doc, setDoc } from "firebase/firestore";
+import { FirebaseError } from "firebase/app";
 
 // Update the AuthContextType interface
 interface AuthContextType {
@@ -23,14 +24,12 @@ interface AuthContextType {
   ) => Promise<boolean>;
   users: User[];
   addUser: (user: Omit<User, "id">) => void;
-  createUserWithProfile: (
-    userData: {
-      email: string;
-      firstName: string;
-      lastName: string;
-      password: string;
-    }
-  ) => Promise<{ success: boolean; error?: Error }>;
+  createUserWithProfile: (userData: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    password: string;
+  }) => Promise<{ success: boolean; error?: Error }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -89,11 +88,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // If Firebase authentication succeeds, create a user object
       if (firebaseUser) {
-        // Try to find a matching user in local storage
-        const emailUsername = username.includes("@")
-          ? username.split("@")[0]
-          : username;
-        const matchedUser = users.find((u) => u.username === emailUsername);
+        // Try to find a matching user in local storage - first check by full username/email
+        let matchedUser = users.find((u) => u.username === username);
+
+        // If no match, try extracting username from email format (for backward compatibility)
+        if (!matchedUser && username.includes("@")) {
+          const extractedUsername = username.split("@")[0];
+          matchedUser = users.find((u) => u.username === extractedUsername);
+        }
 
         if (matchedUser) {
           // Use existing user if found
@@ -101,11 +103,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           localStorage.setItem("currentUser", JSON.stringify(matchedUser));
         } else {
           // Create new user object based on Firebase auth
+          const displayName = username.includes("@")
+            ? username.split("@")[0]
+            : username;
           const newUser: User = {
             id: firebaseUser.uid,
-            username: emailUsername,
+            username: username, // Use full email or username as provided
             password: password, // store password for local use
-            name: firebaseUser.displayName || emailUsername,
+            name: firebaseUser.displayName || displayName,
             role: "staff", // default role
           };
 
@@ -174,7 +179,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const addUser = async (newUser: Omit<User, "id">) => {
     try {
       // Create user in Firebase first
-      const email = `${newUser.username}@timetracker.app`;
+      // Check if username already contains @ (is an email)
+      const email = newUser.username.includes("@")
+        ? newUser.username
+        : `${newUser.username}@timetracker.app`;
       await createUserWithEmailAndPassword(auth, email, newUser.password);
 
       // Then create in local storage
