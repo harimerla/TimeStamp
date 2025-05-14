@@ -19,7 +19,7 @@ const AdminPage = () => {
   const { timeEntries } = useTimeTracking();
   const [showNewUserForm, setShowNewUserForm] = useState(false);
   const [formData, setFormData] = useState({
-    username: "",
+    email: "", // changed from username
     password: "",
     name: "",
     role: "staff" as "admin" | "staff",
@@ -53,23 +53,28 @@ const AdminPage = () => {
     setFormError(null);
 
     // Simple validation
-    if (!formData.username || !formData.password || !formData.name) {
+    if (!formData.email || !formData.password || !formData.name) {
       setFormError("All fields are required");
       return;
     }
 
-    // Check username uniqueness
-    if (users.some((user) => user.username === formData.username)) {
-      setFormError("Username already exists");
+    // Check email uniqueness
+    if (users.some((user) => user.username === formData.email)) {
+      setFormError("Email already exists");
       return;
     }
 
-    // Add new user
-    addUser(formData);
+    // Add new user (pass email as username for compatibility)
+    addUser({
+      username: formData.email, // keep compatibility with User type
+      password: formData.password,
+      name: formData.name,
+      role: formData.role,
+    });
 
     // Reset form
     setFormData({
-      username: "",
+      email: "",
       password: "",
       name: "",
       role: "staff",
@@ -123,11 +128,11 @@ const AdminPage = () => {
                 onClick={() => setShowNewUserForm(!showNewUserForm)}
                 className="p-1 rounded-full hover:bg-primary-500"
               >
-                {/* {showNewUserForm ? (
+                {showNewUserForm ? (
                   <X className="h-5 w-5" />
                 ) : (
                   <Plus className="h-5 w-5" />
-                )} */}
+                )}
               </button>
             </div>
 
@@ -192,16 +197,16 @@ const AdminPage = () => {
 
                   <div className="mb-3">
                     <label
-                      htmlFor="username"
+                      htmlFor="email"
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
-                      Username
+                      Email
                     </label>
                     <input
-                      type="text"
-                      id="username"
-                      name="username"
-                      value={formData.username}
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                     />

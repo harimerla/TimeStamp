@@ -178,12 +178,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const addUser = async (newUser: Omit<User, "id">) => {
     try {
-      // Create user in Firebase first
-      // Check if username already contains @ (is an email)
-      const email = newUser.username.includes("@")
-        ? newUser.username
-        : `${newUser.username}@timetracker.app`;
-      await createUserWithEmailAndPassword(auth, email, newUser.password);
+      // Use the email as provided, do not append anything
+      await createUserWithEmailAndPassword(auth, newUser.username, newUser.password);
 
       // Then create in local storage
       const userWithId: User = {

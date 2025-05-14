@@ -3,7 +3,7 @@ export interface User {
   username: string;
   password: string;
   name: string;
-  role: 'admin' | 'staff';
+  role: "admin" | "staff";
 }
 
 export interface TimeEntry {
@@ -14,7 +14,7 @@ export interface TimeEntry {
   clockOut: string | null; // HH:MM format
   breaks: Break[];
   totalHours: number | null;
-  status: 'active' | 'completed';
+  status: "active" | "completed";
 }
 
 export interface Break {
