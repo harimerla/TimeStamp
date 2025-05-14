@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { User, Plus, AlertTriangle, Check, X } from 'lucide-react';
 import TimeEntryList from '../components/TimeEntryList';
+import ExportButton from '../components/ExportButton';
+import { useTimeTracking } from '../context/TimeTrackingContext';
 
 const AdminPage = () => {
   const { users, addUser } = useAuth();
+  const { timeEntries } = useTimeTracking();
   const [showNewUserForm, setShowNewUserForm] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
@@ -54,6 +57,14 @@ const AdminPage = () => {
     
     // Close form
     setShowNewUserForm(false);
+  };
+
+  // Get filtered entries for export
+  const getFilteredEntries = () => {
+    if (selectedUser) {
+      return timeEntries.filter(entry => entry.userId === selectedUser);
+    }
+    return timeEntries;
   };
 
   return (
@@ -201,13 +212,28 @@ const AdminPage = () => {
         
         <div className="lg:col-span-3">
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="bg-primary-600 text-white px-4 py-3">
+            <div className="bg-primary-600 text-white px-4 py-3 flex items-center justify-between">
               <h2 className="font-semibold">
                 {selectedUser 
                   ? `Time Entries: ${users.find(u => u.id === selectedUser)?.name}`
                   : 'All Time Entries'
                 }
               </h2>
+              
+              <div className="flex space-x-2">
+                <ExportButton
+                  data={getFilteredEntries()}
+                  users={users}
+                  type="excel"
+                  filename={`time-entries-${selectedUser ? users.find(u => u.id === selectedUser)?.username : 'all'}`}
+                />
+                <ExportButton
+                  data={getFilteredEntries()}
+                  users={users}
+                  type="pdf"
+                  filename={`time-entries-${selectedUser ? users.find(u => u.id === selectedUser)?.username : 'all'}`}
+                />
+              </div>
             </div>
             
             <div className="p-4">

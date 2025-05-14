@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, parseISO, addWeeks, subWeeks } from 'date-fns';
 import TimeEntryList from '../components/TimeEntryList';
+import ExportButton from '../components/ExportButton';
 import { useAuth } from '../context/AuthContext';
 import { useTimeTracking } from '../context/TimeTrackingContext';
 import { ArrowLeft, ArrowRight, Calendar, Clock } from 'lucide-react';
 
 const ReportPage = () => {
-  const { user } = useAuth();
-  const { calculateTotalHoursForDate } = useTimeTracking();
+  const { user, users } = useAuth();
+  const { calculateTotalHoursForDate, timeEntries } = useTimeTracking();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'day' | 'week'>('day');
   
@@ -21,6 +22,22 @@ const ReportPage = () => {
   // Format the selected date for filtering
   const formattedSelectedDate = format(selectedDate, 'yyyy-MM-dd');
   
+  // Filter entries for export
+  const getFilteredEntries = () => {
+    if (!user) return [];
+    
+    return timeEntries.filter(entry => {
+      if (entry.userId !== user.id) return false;
+      
+      if (viewMode === 'day') {
+        return entry.date === formattedSelectedDate;
+      } else {
+        const entryDate = parseISO(entry.date);
+        return entryDate >= weekStart && entryDate <= weekEnd;
+      }
+    });
+  };
+
   // Navigate to previous day/week
   const goToPrevious = () => {
     if (viewMode === 'day') {
@@ -54,6 +71,7 @@ const ReportPage = () => {
   };
   
   const weeklyTotal = calculateWeeklyTotal();
+  const filteredEntries = getFilteredEntries();
   
   return (
     <div className="space-y-6">
@@ -66,27 +84,44 @@ const ReportPage = () => {
         <div className="bg-primary-600 text-white px-4 py-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Time Report</h2>
           
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setViewMode('day')}
-              className={`px-3 py-1 rounded-md text-sm ${
-                viewMode === 'day' 
-                  ? 'bg-white text-primary-600' 
-                  : 'text-white hover:bg-primary-500'
-              }`}
-            >
-              Day
-            </button>
-            <button
-              onClick={() => setViewMode('week')}
-              className={`px-3 py-1 rounded-md text-sm ${
-                viewMode === 'week' 
-                  ? 'bg-white text-primary-600' 
-                  : 'text-white hover:bg-primary-500'
-              }`}
-            >
-              Week
-            </button>
+          <div className="flex items-center space-x-2">
+            <div className="flex space-x-2 mr-4">
+              <button
+                onClick={() => setViewMode('day')}
+                className={`px-3 py-1 rounded-md text-sm ${
+                  viewMode === 'day' 
+                    ? 'bg-white text-primary-600' 
+                    : 'text-white hover:bg-primary-500'
+                }`}
+              >
+                Day
+              </button>
+              <button
+                onClick={() => setViewMode('week')}
+                className={`px-3 py-1 rounded-md text-sm ${
+                  viewMode === 'week' 
+                    ? 'bg-white text-primary-600' 
+                    : 'text-white hover:bg-primary-500'
+                }`}
+              >
+                Week
+              </button>
+            </div>
+            
+            <div className="flex space-x-2">
+              <ExportButton
+                data={filteredEntries}
+                users={users}
+                type="excel"
+                filename={`time-report-${viewMode}-${format(selectedDate, 'yyyy-MM-dd')}`}
+              />
+              <ExportButton
+                data={filteredEntries}
+                users={users}
+                type="pdf"
+                filename={`time-report-${viewMode}-${format(selectedDate, 'yyyy-MM-dd')}`}
+              />
+            </div>
           </div>
         </div>
         
