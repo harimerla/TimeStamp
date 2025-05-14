@@ -10,7 +10,7 @@ import {
 import { auth, db } from "../firebase";
 import { User } from "../types";
 import { defaultUsers } from "../data/users";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, collection, getDocs, query, serverTimestamp } from "firebase/firestore";
 import { FirebaseError } from "firebase/app";
 
 // Update the AuthContextType interface
@@ -37,14 +37,43 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  // Keep both user types - our app User type and Firebase User
+  // Keep existing state
   const [user, setUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>(() => {
-    const storedUsers = localStorage.getItem("users");
-    return storedUsers ? JSON.parse(storedUsers) : defaultUsers;
-  });
-  // Track firebase user separately
+  const [users, setUsers] = useState<User[]>([]);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+
+  // Add this new function to fetch users from Firebase
+  const fetchUsers = async () => {
+    try {
+      const usersRef = collection(db, "users");
+      const usersSnapshot = await getDocs(query(usersRef));
+
+      const fetchedUsers: User[] = [];
+      usersSnapshot.forEach((doc) => {
+        const userData = doc.data();
+        fetchedUsers.push({
+          id: doc.id,
+          username: userData.email || userData.username,
+          password: "", // We don't store passwords in Firestore for security
+          name: userData.name,
+          role: userData.role || "staff",
+        });
+      });
+
+      setUsers(fetchedUsers);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      // Fall back to default users if Firebase fetch fails
+      if (users.length === 0) {
+        setUsers(defaultUsers);
+      }
+    }
+  };
+
+  // Call fetchUsers when the component mounts and whenever firebaseUser changes
+  useEffect(() => {
+    fetchUsers();
+  }, [firebaseUser]);
 
   // Set up Firebase auth listener
   useEffect(() => {
@@ -178,19 +207,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const addUser = async (newUser: Omit<User, "id">) => {
     try {
-      // Use the email as provided, do not append anything
-      await createUserWithEmailAndPassword(auth, newUser.username, newUser.password);
-
-      // Then create in local storage
-      const userWithId: User = {
-        ...newUser,
-        id: Date.now().toString(),
-      };
-
-      const updatedUsers = [...users, userWithId];
-      setUsers(updatedUsers);
-      localStorage.setItem("users", JSON.stringify(updatedUsers));
-
+      // Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        auth, 
+        newUser.username, 
+        newUser.password
+      );
+      
+      const uid = userCredential.user.uid;
+      
+      // Save extended user data in Firestore
+      await setDoc(doc(db, "users", uid), {
+        email: newUser.username,
+        name: newUser.name,
+        role: newUser.role,
+        createdAt: serverTimestamp()
+      });
+      
       return true;
     } catch (error) {
       console.error("Add user error:", error);

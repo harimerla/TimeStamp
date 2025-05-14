@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
   User,
@@ -13,10 +13,14 @@ import TimeEntryList from "../components/TimeEntryList";
 import ExportButton from "../components/ExportButton";
 import { useTimeTracking } from "../context/TimeTrackingContext";
 import { format, parseISO } from "date-fns";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../firebase";
 
 const AdminPage = () => {
-  const { users, addUser } = useAuth();
+  const { users: authUsers, addUser } = useAuth();
   const { timeEntries } = useTimeTracking();
+  const [firebaseUsers, setFirebaseUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showNewUserForm, setShowNewUserForm] = useState(false);
   const [formData, setFormData] = useState({
     email: "", // changed from username
@@ -34,6 +38,38 @@ const AdminPage = () => {
   });
   const [isDateFilterActive, setIsDateFilterActive] = useState(false);
 
+  // Fetch users directly from Firebase
+  useEffect(() => {
+    const fetchFirebaseUsers = async () => {
+      try {
+        setLoading(true);
+        const usersRef = collection(db, "users");
+        const snapshot = await getDocs(usersRef);
+
+        const fetchedUsers = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name || "Unknown User",
+            username: data.email || data.username || doc.id,
+            role: data.role || "staff",
+          };
+        });
+
+        setFirebaseUsers(fetchedUsers);
+      } catch (error) {
+        console.error("Error fetching Firebase users:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFirebaseUsers();
+  }, []);
+
+  // Use Firebase users if available, fall back to auth context users
+  const users = firebaseUsers.length > 0 ? firebaseUsers : authUsers;
+  console.log(firebaseUsers);
   // Filter users based on search term
   const filteredUsers = users.filter(
     (user) =>
@@ -48,7 +84,7 @@ const AdminPage = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
@@ -64,28 +100,45 @@ const AdminPage = () => {
       return;
     }
 
-    // Add new user (pass email as username for compatibility)
-    addUser({
-      username: formData.email, // keep compatibility with User type
-      password: formData.password,
-      name: formData.name,
-      role: formData.role,
-    });
+    try {
+      // Add new user - don't check the result since it's void
+      await addUser({
+        username: formData.email,
+        password: formData.password,
+        name: formData.name,
+        role: formData.role,
+      });
 
-    // Reset form
-    setFormData({
-      email: "",
-      password: "",
-      name: "",
-      role: "staff",
-    });
+      // If no error was thrown, consider it successful
+      // Reset form
+      setFormData({
+        email: "",
+        password: "",
+        name: "",
+        role: "staff",
+      });
 
-    // Show success message
-    setFormSuccess("User added successfully");
-    setTimeout(() => setFormSuccess(null), 3000);
+      // Show success message
+      setFormSuccess("User added successfully");
+      setTimeout(() => setFormSuccess(null), 3000);
 
-    // Close form
-    setShowNewUserForm(false);
+      // Close form
+      setShowNewUserForm(false);
+
+      // Refresh the users list
+      const usersRef = collection(db, "users");
+      const snapshot = await getDocs(usersRef);
+      const fetchedUsers = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        name: doc.data().name || "Unknown User",
+        username: doc.data().email || doc.data().username || doc.id,
+        role: doc.data().role || "staff",
+      }));
+      setFirebaseUsers(fetchedUsers);
+    } catch (error) {
+      console.error("Error adding user:", error);
+      setFormError("Failed to add user");
+    }
   };
 
   // Get filtered entries for export
@@ -109,6 +162,15 @@ const AdminPage = () => {
       return true;
     });
   };
+
+  // Just add a loading indicator
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-600">Loading users...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
