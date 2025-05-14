@@ -120,17 +120,6 @@ const LoginPage = () => {
             </button>
           </div>
 
-          <div className="text-sm text-center">
-            <p className="text-gray-600">Test Credentials:</p>
-            <p className="mt-1 text-xs text-gray-500">
-              Admin: <span className="font-medium">admin@tataride.com.au</span>,
-              password: <span className="font-medium">admin123</span>
-              <br />
-              Staff: username: <span className="font-medium">john</span>,
-              password: <span className="font-medium">password123</span>
-            </p>
-          </div>
-
           <div className="text-sm text-center mt-4">
             <p>
               Don't have an account?{" "}
