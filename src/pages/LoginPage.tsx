@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { FirebaseError } from "firebase/app";
 import { setupFirebaseUsers } from "../utils/setupFirebaseUsers";
+import { Link } from "react-router-dom";
 
 const LoginPage = () => {
   const [username, setUsername] = useState("");
@@ -119,7 +120,7 @@ const LoginPage = () => {
             </button>
           </div>
 
-          <div className="text-sm text-center">
+          {/* <div className="text-sm text-center">
             <p className="text-gray-600">Test Credentials:</p>
             <p className="mt-1 text-xs text-gray-500">
               Admin: username: <span className="font-medium">admin</span>,
@@ -128,19 +129,19 @@ const LoginPage = () => {
               Staff: username: <span className="font-medium">john</span>,
               password: <span className="font-medium">password123</span>
             </p>
-          </div>
+          </div> */}
 
-          {isDevelopment && (
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={setupFirebaseUsers}
-                className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+          <div className="text-sm text-center mt-4">
+            <p>
+              Don't have an account?{" "}
+              <Link
+                to="/register"
+                className="text-primary-600 hover:text-primary-800 font-medium"
               >
-                Setup Test Users in Firebase
-              </button>
-            </div>
-          )}
+                Register here
+              </Link>
+            </p>
+          </div>
         </form>
       </div>
     </div>

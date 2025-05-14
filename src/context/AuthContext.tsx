@@ -7,11 +7,12 @@ import {
   User as FirebaseUser,
   UserCredential,
 } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth, db } from "../firebase";
 import { User } from "../types";
 import { defaultUsers } from "../data/users";
+import { doc, setDoc } from "firebase/firestore";
 
-// Keep the existing AuthContextType
+// Update the AuthContextType interface
 interface AuthContextType {
   user: User | null;
   login: (username: string, password: string) => Promise<boolean>;
@@ -22,6 +23,14 @@ interface AuthContextType {
   ) => Promise<boolean>;
   users: User[];
   addUser: (user: Omit<User, "id">) => void;
+  createUserWithProfile: (
+    userData: {
+      email: string;
+      firstName: string;
+      lastName: string;
+      password: string;
+    }
+  ) => Promise<{ success: boolean; error?: Error }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -185,6 +194,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const createUserWithProfile = async (userData: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    password: string;
+  }) => {
+    try {
+      // Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        userData.email,
+        userData.password
+      );
+
+      const firebaseUser = userCredential.user;
+
+      // Create username from email
+      const username = userData.email.split("@")[0];
+
+      // Create a user object for our app
+      const newUser: User = {
+        id: firebaseUser.uid,
+        username: username,
+        password: userData.password, // store password for local use
+        name: `${userData.firstName} ${userData.lastName}`,
+        role: "staff", // default role
+      };
+
+      // Add to Firestore
+      await setDoc(doc(db, "users", firebaseUser.uid), {
+        username: username,
+        name: `${userData.firstName} ${userData.lastName}`,
+        email: userData.email,
+        role: "staff",
+        createdAt: new Date(),
+      });
+
+      // Add to local users array
+      const updatedUsers = [...users, newUser];
+      setUsers(updatedUsers);
+      localStorage.setItem("users", JSON.stringify(updatedUsers));
+
+      return { success: true };
+    } catch (error) {
+      console.error("Error creating user:", error);
+      return {
+        success: false,
+        error:
+          error instanceof FirebaseError
+            ? error
+            : new Error("Registration failed"),
+      };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -194,6 +258,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         updatePassword,
         users,
         addUser,
+        createUserWithProfile,
       }}
     >
       {children}
