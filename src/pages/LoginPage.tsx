@@ -120,7 +120,7 @@ const LoginPage = () => {
             </button>
           </div>
 
-          <div className="text-sm text-center mt-4">
+          {/* <div className="text-sm text-center mt-4">
             <p>
               Don't have an account?{" "}
               <Link
@@ -130,7 +130,7 @@ const LoginPage = () => {
                 Register here
               </Link>
             </p>
-          </div>
+          </div> */}
         </form>
       </div>
     </div>
