@@ -50,7 +50,7 @@ const Navbar = ({ onMenuClick }: NavbarProps) => {
             <div className="flex items-center">
               {/* Replace the Clock icon with your logo */}
               <img
-                src="/public/logo2.png"
+                src="/logo2.png"
                 alt="Time Tracker Logo"
                 className="h-12 w-auto"
               />

@@ -32,7 +32,7 @@ const LoginPage = () => {
           <div className="mx-auto h-16 w-16 flex items-center justify-center">
             {/* Replace the Clock icon with your logo */}
             <img
-              src="public/logo1.png"
+              src="/logo1.png"
               alt="Time Tracker Logo"
               className="h-20 w-auto"
             />
