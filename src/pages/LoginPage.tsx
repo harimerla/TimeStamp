@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { FirebaseError } from "firebase/app";
+import { setupFirebaseUsers } from "../utils/setupFirebaseUsers";
 
 const LoginPage = () => {
   const [username, setUsername] = useState("");
@@ -19,11 +21,31 @@ const LoginPage = () => {
         setError("Invalid username or password");
       }
     } catch (err) {
-      setError("An error occurred. Please try again.");
+      // Handle Firebase specific errors
+      if (err instanceof FirebaseError) {
+        switch (err.code) {
+          case "auth/user-not-found":
+          case "auth/wrong-password":
+            setError("Invalid username or password");
+            break;
+          case "auth/too-many-requests":
+            setError("Too many failed login attempts. Please try again later.");
+            break;
+          case "auth/network-request-failed":
+            setError("Network error. Please check your internet connection.");
+            break;
+          default:
+            setError(`Authentication error: ${err.message}`);
+        }
+      } else {
+        setError("An error occurred. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
   };
+
+  const isDevelopment = import.meta.env.DEV;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -107,6 +129,18 @@ const LoginPage = () => {
               password: <span className="font-medium">password123</span>
             </p>
           </div>
+
+          {isDevelopment && (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={setupFirebaseUsers}
+                className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+              >
+                Setup Test Users in Firebase
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

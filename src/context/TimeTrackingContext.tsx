@@ -2,6 +2,19 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { TimeEntry, Break } from '../types';
 import { useAuth } from './AuthContext';
 import { format } from 'date-fns';
+import { 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  doc, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy,
+  deleteDoc,
+  Timestamp
+} from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface TimeTrackingContextType {
   timeEntries: TimeEntry[];
@@ -15,6 +28,7 @@ interface TimeTrackingContextType {
   calculateTotalHoursForDate: (userId: string, date: string) => number;
   calculateTotalHoursForWeek: (userId: string, startDate: string) => number;
   activeBreak: Break | null;
+  isLoading: boolean;
 }
 
 const TimeTrackingContext = createContext<TimeTrackingContextType | undefined>(undefined);
@@ -24,14 +38,46 @@ export const TimeTrackingProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
   const [activeBreak, setActiveBreak] = useState<Break | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Load time entries from localStorage on mount
+  // Load time entries from Firestore when user changes
   useEffect(() => {
-    const storedEntries = localStorage.getItem('timeEntries');
-    if (storedEntries) {
-      setTimeEntries(JSON.parse(storedEntries));
-    }
-  }, []);
+    const loadTimeEntries = async () => {
+      if (!user) {
+        setTimeEntries([]);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const entriesCollection = collection(db, 'timeEntries');
+        const q = query(
+          entriesCollection,
+          // We're not filtering by user here - we'll do that in the component
+          orderBy('date', 'desc')
+        );
+        
+        const querySnapshot = await getDocs(q);
+        const entries: TimeEntry[] = [];
+        
+        querySnapshot.forEach((doc) => {
+          const data = doc.data() as Omit<TimeEntry, 'id'>;
+          entries.push({
+            ...data,
+            id: doc.id
+          } as TimeEntry);
+        });
+        
+        setTimeEntries(entries);
+      } catch (error) {
+        console.error("Error loading time entries:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadTimeEntries();
+  }, [user]);
 
   // Identify if there's an active entry for the current user
   useEffect(() => {
@@ -61,19 +107,13 @@ export const TimeTrackingProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [user, timeEntries]);
 
-  // Save time entries to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('timeEntries', JSON.stringify(timeEntries));
-  }, [timeEntries]);
-
-  const clockIn = () => {
+  const clockIn = async () => {
     if (!user || activeEntry) return;
 
     const today = format(new Date(), 'yyyy-MM-dd');
     const now = format(new Date(), 'HH:mm');
 
-    const newEntry: TimeEntry = {
-      id: Date.now().toString(),
+    const newEntry: Omit<TimeEntry, 'id'> = {
       userId: user.id,
       date: today,
       clockIn: now,
@@ -83,10 +123,23 @@ export const TimeTrackingProvider: React.FC<{ children: React.ReactNode }> = ({ 
       status: 'active'
     };
 
-    setTimeEntries(prev => [...prev, newEntry]);
+    try {
+      // Add to Firestore
+      const docRef = await addDoc(collection(db, 'timeEntries'), newEntry);
+      
+      // Update local state
+      const entryWithId = { 
+        ...newEntry, 
+        id: docRef.id 
+      } as TimeEntry;
+      
+      setTimeEntries(prev => [...prev, entryWithId]);
+    } catch (error) {
+      console.error("Error clocking in:", error);
+    }
   };
 
-  const clockOut = () => {
+  const clockOut = async () => {
     if (!user || !activeEntry) return;
 
     const now = format(new Date(), 'HH:mm');
@@ -108,23 +161,32 @@ export const TimeTrackingProvider: React.FC<{ children: React.ReactNode }> = ({ 
     totalMinutes -= breakMinutes;
     const totalHours = totalMinutes / 60;
 
-    // Update the entry
-    const updatedEntries = timeEntries.map(entry => {
-      if (entry.id === activeEntry.id) {
-        return {
-          ...entry,
-          clockOut: now,
-          totalHours,
-          status: 'completed'
-        };
-      }
-      return entry;
-    });
+    try {
+      // Update in Firestore
+      await updateDoc(doc(db, 'timeEntries', activeEntry.id), {
+        clockOut: now,
+        totalHours,
+        status: 'completed'
+      });
 
-    setTimeEntries(updatedEntries);
+      // Update local state
+      setTimeEntries(timeEntries.map(entry => {
+        if (entry.id === activeEntry.id) {
+          return {
+            ...entry,
+            clockOut: now,
+            totalHours,
+            status: 'completed'
+          };
+        }
+        return entry;
+      }));
+    } catch (error) {
+      console.error("Error clocking out:", error);
+    }
   };
 
-  const startBreak = () => {
+  const startBreak = async () => {
     if (!user || !activeEntry) return;
 
     const now = format(new Date(), 'HH:mm');
@@ -135,21 +197,32 @@ export const TimeTrackingProvider: React.FC<{ children: React.ReactNode }> = ({ 
       duration: null
     };
 
-    const updatedEntries = timeEntries.map(entry => {
-      if (entry.id === activeEntry.id) {
-        return {
-          ...entry,
-          breaks: [...entry.breaks, newBreak]
-        };
-      }
-      return entry;
-    });
+    const updatedBreaks = [...activeEntry.breaks, newBreak];
 
-    setTimeEntries(updatedEntries);
-    setActiveBreak(newBreak);
+    try {
+      // Update in Firestore
+      await updateDoc(doc(db, 'timeEntries', activeEntry.id), {
+        breaks: updatedBreaks
+      });
+
+      // Update local state
+      setTimeEntries(timeEntries.map(entry => {
+        if (entry.id === activeEntry.id) {
+          return {
+            ...entry,
+            breaks: updatedBreaks
+          };
+        }
+        return entry;
+      }));
+      
+      setActiveBreak(newBreak);
+    } catch (error) {
+      console.error("Error starting break:", error);
+    }
   };
 
-  const endBreak = () => {
+  const endBreak = async () => {
     if (!user || !activeEntry || !activeBreak) return;
 
     const now = format(new Date(), 'HH:mm');
@@ -160,29 +233,41 @@ export const TimeTrackingProvider: React.FC<{ children: React.ReactNode }> = ({ 
     
     const duration = (endHours * 60 + endMinutes) - (startHours * 60 + startMinutes);
 
-    const updatedEntries = timeEntries.map(entry => {
-      if (entry.id === activeEntry.id) {
+    const updatedBreaks = activeEntry.breaks.map(breakItem => {
+      if (breakItem.id === activeBreak.id) {
         return {
-          ...entry,
-          breaks: entry.breaks.map(breakItem => {
-            if (breakItem.id === activeBreak.id) {
-              return {
-                ...breakItem,
-                endTime: now,
-                duration
-              };
-            }
-            return breakItem;
-          })
+          ...breakItem,
+          endTime: now,
+          duration
         };
       }
-      return entry;
+      return breakItem;
     });
 
-    setTimeEntries(updatedEntries);
-    setActiveBreak(null);
+    try {
+      // Update in Firestore
+      await updateDoc(doc(db, 'timeEntries', activeEntry.id), {
+        breaks: updatedBreaks
+      });
+
+      // Update local state
+      setTimeEntries(timeEntries.map(entry => {
+        if (entry.id === activeEntry.id) {
+          return {
+            ...entry,
+            breaks: updatedBreaks
+          };
+        }
+        return entry;
+      }));
+      
+      setActiveBreak(null);
+    } catch (error) {
+      console.error("Error ending break:", error);
+    }
   };
 
+  // Utility functions remain the same
   const getEntriesByDate = (date: string) => {
     return timeEntries.filter(entry => entry.date === date);
   };
@@ -198,8 +283,7 @@ export const TimeTrackingProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   const calculateTotalHoursForWeek = (userId: string, startDate: string) => {
-    // For simplicity, we're just calculating total hours for all entries
-    // In a real app, you'd filter by the week range
+    // Simple implementation - you might want to enhance this with proper week filtering
     return timeEntries
       .filter(entry => entry.userId === userId && entry.totalHours !== null)
       .reduce((total, entry) => total + (entry.totalHours || 0), 0);
@@ -217,7 +301,8 @@ export const TimeTrackingProvider: React.FC<{ children: React.ReactNode }> = ({ 
       getEntriesByDate,
       getEntriesByUserId,
       calculateTotalHoursForDate,
-      calculateTotalHoursForWeek
+      calculateTotalHoursForWeek,
+      isLoading
     }}>
       {children}
     </TimeTrackingContext.Provider>

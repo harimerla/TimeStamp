@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { User, Plus, AlertTriangle, Check, X, Search, Calendar } from "lucide-react";
+import {
+  User,
+  Plus,
+  AlertTriangle,
+  Check,
+  X,
+  Search,
+  Calendar,
+} from "lucide-react";
 import TimeEntryList from "../components/TimeEntryList";
 import ExportButton from "../components/ExportButton";
 import { useTimeTracking } from "../context/TimeTrackingContext";
@@ -82,17 +90,17 @@ const AdminPage = () => {
       if (selectedUser && entry.userId !== selectedUser) {
         return false;
       }
-      
+
       // Filter by date range if active
       if (isDateFilterActive) {
         const entryDate = format(parseISO(entry.date), "yyyy-MM-dd");
         const startDate = format(parseISO(dateFilter.startDate), "yyyy-MM-dd");
         const endDate = format(parseISO(dateFilter.endDate), "yyyy-MM-dd");
-        
+
         // Check if entry date is within filter range
         return entryDate >= startDate && entryDate <= endDate;
       }
-      
+
       return true;
     });
   };
@@ -115,11 +123,11 @@ const AdminPage = () => {
                 onClick={() => setShowNewUserForm(!showNewUserForm)}
                 className="p-1 rounded-full hover:bg-primary-500"
               >
-                {showNewUserForm ? (
+                {/* {showNewUserForm ? (
                   <X className="h-5 w-5" />
                 ) : (
                   <Plus className="h-5 w-5" />
-                )}
+                )} */}
               </button>
             </div>
 
@@ -330,12 +338,17 @@ const AdminPage = () => {
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center">
                     <Calendar className="h-5 w-5 text-gray-400 mr-2" />
-                    <span className="text-sm font-medium text-gray-700">Date Filter:</span>
+                    <span className="text-sm font-medium text-gray-700">
+                      Date Filter:
+                    </span>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-3">
                     <div className="flex items-center space-x-2">
-                      <label htmlFor="startDate" className="text-sm text-gray-600">
+                      <label
+                        htmlFor="startDate"
+                        className="text-sm text-gray-600"
+                      >
                         From:
                       </label>
                       <input
@@ -343,14 +356,20 @@ const AdminPage = () => {
                         id="startDate"
                         value={dateFilter.startDate}
                         onChange={(e) => {
-                          setDateFilter((prev) => ({ ...prev, startDate: e.target.value }));
+                          setDateFilter((prev) => ({
+                            ...prev,
+                            startDate: e.target.value,
+                          }));
                         }}
                         className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                       />
                     </div>
 
                     <div className="flex items-center space-x-2">
-                      <label htmlFor="endDate" className="text-sm text-gray-600">
+                      <label
+                        htmlFor="endDate"
+                        className="text-sm text-gray-600"
+                      >
                         To:
                       </label>
                       <input
@@ -358,7 +377,10 @@ const AdminPage = () => {
                         id="endDate"
                         value={dateFilter.endDate}
                         onChange={(e) => {
-                          setDateFilter((prev) => ({ ...prev, endDate: e.target.value }));
+                          setDateFilter((prev) => ({
+                            ...prev,
+                            endDate: e.target.value,
+                          }));
                         }}
                         className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                       />
@@ -381,7 +403,7 @@ const AdminPage = () => {
                       >
                         Apply Filter
                       </button>
-                      
+
                       {isDateFilterActive && (
                         <button
                           onClick={() => {
@@ -395,17 +417,19 @@ const AdminPage = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {isDateFilterActive && (
                   <div className="mt-2 text-sm text-primary-600">
-                    Showing entries from {format(parseISO(dateFilter.startDate), "MMM d, yyyy")} to {format(parseISO(dateFilter.endDate), "MMM d, yyyy")}
+                    Showing entries from{" "}
+                    {format(parseISO(dateFilter.startDate), "MMM d, yyyy")} to{" "}
+                    {format(parseISO(dateFilter.endDate), "MMM d, yyyy")}
                   </div>
                 )}
               </div>
-              
-              <TimeEntryList 
-                userId={selectedUser || undefined} 
-                dateRange={isDateFilterActive ? dateFilter : undefined} 
+
+              <TimeEntryList
+                userId={selectedUser || undefined}
+                dateRange={isDateFilterActive ? dateFilter : undefined}
               />
             </div>
           </div>
