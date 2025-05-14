@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { User, Plus, AlertTriangle, Check, X, Search } from "lucide-react";
+import { User, Plus, AlertTriangle, Check, X, Search, Calendar } from "lucide-react";
 import TimeEntryList from "../components/TimeEntryList";
 import ExportButton from "../components/ExportButton";
 import { useTimeTracking } from "../context/TimeTrackingContext";
+import { format, parseISO } from "date-fns";
 
 const AdminPage = () => {
   const { users, addUser } = useAuth();
@@ -19,6 +20,11 @@ const AdminPage = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [dateFilter, setDateFilter] = useState({
+    startDate: format(new Date(), "yyyy-MM-dd"),
+    endDate: format(new Date(), "yyyy-MM-dd"),
+  });
+  const [isDateFilterActive, setIsDateFilterActive] = useState(false);
 
   // Filter users based on search term
   const filteredUsers = users.filter(
@@ -71,10 +77,24 @@ const AdminPage = () => {
 
   // Get filtered entries for export
   const getFilteredEntries = () => {
-    if (selectedUser) {
-      return timeEntries.filter((entry) => entry.userId === selectedUser);
-    }
-    return timeEntries;
+    return timeEntries.filter((entry) => {
+      // Filter by user if selected
+      if (selectedUser && entry.userId !== selectedUser) {
+        return false;
+      }
+      
+      // Filter by date range if active
+      if (isDateFilterActive) {
+        const entryDate = format(parseISO(entry.date), "yyyy-MM-dd");
+        const startDate = format(parseISO(dateFilter.startDate), "yyyy-MM-dd");
+        const endDate = format(parseISO(dateFilter.endDate), "yyyy-MM-dd");
+        
+        // Check if entry date is within filter range
+        return entryDate >= startDate && entryDate <= endDate;
+      }
+      
+      return true;
+    });
   };
 
   return (
@@ -306,7 +326,87 @@ const AdminPage = () => {
             </div>
 
             <div className="p-4">
-              <TimeEntryList userId={selectedUser || undefined} />
+              <div className="mb-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center">
+                    <Calendar className="h-5 w-5 text-gray-400 mr-2" />
+                    <span className="text-sm font-medium text-gray-700">Date Filter:</span>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-3">
+                    <div className="flex items-center space-x-2">
+                      <label htmlFor="startDate" className="text-sm text-gray-600">
+                        From:
+                      </label>
+                      <input
+                        type="date"
+                        id="startDate"
+                        value={dateFilter.startDate}
+                        onChange={(e) => {
+                          setDateFilter((prev) => ({ ...prev, startDate: e.target.value }));
+                        }}
+                        className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <label htmlFor="endDate" className="text-sm text-gray-600">
+                        To:
+                      </label>
+                      <input
+                        type="date"
+                        id="endDate"
+                        value={dateFilter.endDate}
+                        onChange={(e) => {
+                          setDateFilter((prev) => ({ ...prev, endDate: e.target.value }));
+                        }}
+                        className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                      />
+                    </div>
+
+                    <div>
+                      <button
+                        onClick={() => {
+                          // Validate dates
+                          if (dateFilter.startDate > dateFilter.endDate) {
+                            // Swap dates if start is after end
+                            setDateFilter({
+                              startDate: dateFilter.endDate,
+                              endDate: dateFilter.startDate,
+                            });
+                          }
+                          setIsDateFilterActive(true);
+                        }}
+                        className="px-3 py-1 bg-primary-600 text-white text-sm rounded-md hover:bg-primary-700"
+                      >
+                        Apply Filter
+                      </button>
+                      
+                      {isDateFilterActive && (
+                        <button
+                          onClick={() => {
+                            setIsDateFilterActive(false);
+                          }}
+                          className="ml-2 px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                {isDateFilterActive && (
+                  <div className="mt-2 text-sm text-primary-600">
+                    Showing entries from {format(parseISO(dateFilter.startDate), "MMM d, yyyy")} to {format(parseISO(dateFilter.endDate), "MMM d, yyyy")}
+                  </div>
+                )}
+              </div>
+              
+              <TimeEntryList 
+                userId={selectedUser || undefined} 
+                dateRange={isDateFilterActive ? dateFilter : undefined} 
+              />
             </div>
           </div>
         </div>

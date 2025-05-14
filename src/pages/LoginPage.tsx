@@ -1,26 +1,25 @@
-import { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { Clock } from 'lucide-react';
+import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
 
 const LoginPage = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setIsLoading(true);
 
     try {
       const success = await login(username, password);
       if (!success) {
-        setError('Invalid username or password');
+        setError("Invalid username or password");
       }
     } catch (err) {
-      setError('An error occurred. Please try again.');
+      setError("An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -30,8 +29,13 @@ const LoginPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <div className="mx-auto h-12 w-12 rounded-full bg-primary-600 flex items-center justify-center">
-            <Clock className="h-8 w-8 text-white" />
+          <div className="mx-auto h-16 w-16 flex items-center justify-center">
+            {/* Replace the Clock icon with your logo */}
+            <img
+              src="public/logo1.png"
+              alt="Time Tracker Logo"
+              className="h-20 w-auto"
+            />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Staff Time Tracker
@@ -40,11 +44,13 @@ const LoginPage = () => {
             Sign in to track your work hours
           </p>
         </div>
-        
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <label htmlFor="username" className="sr-only">Username</label>
+              <label htmlFor="username" className="sr-only">
+                Username
+              </label>
               <input
                 id="username"
                 name="username"
@@ -57,7 +63,9 @@ const LoginPage = () => {
               />
             </div>
             <div>
-              <label htmlFor="password" className="sr-only">Password</label>
+              <label htmlFor="password" className="sr-only">
+                Password
+              </label>
               <input
                 id="password"
                 name="password"
@@ -76,27 +84,27 @@ const LoginPage = () => {
               {error}
             </div>
           )}
-          
+
           <div>
             <button
               type="submit"
               disabled={isLoading}
               className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 ${
-                isLoading ? 'opacity-70 cursor-not-allowed' : ''
+                isLoading ? "opacity-70 cursor-not-allowed" : ""
               }`}
             >
-              {isLoading ? 'Signing in...' : 'Sign in'}
+              {isLoading ? "Signing in..." : "Sign in"}
             </button>
           </div>
-          
+
           <div className="text-sm text-center">
-            <p className="text-gray-600">
-              Test Credentials:
-            </p>
+            <p className="text-gray-600">Test Credentials:</p>
             <p className="mt-1 text-xs text-gray-500">
-              Admin: username: <span className="font-medium">admin</span>, password: <span className="font-medium">admin123</span>
+              Admin: username: <span className="font-medium">admin</span>,
+              password: <span className="font-medium">admin123</span>
               <br />
-              Staff: username: <span className="font-medium">john</span>, password: <span className="font-medium">password123</span>
+              Staff: username: <span className="font-medium">john</span>,
+              password: <span className="font-medium">password123</span>
             </p>
           </div>
         </form>
